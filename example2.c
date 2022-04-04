@@ -107,7 +107,6 @@ uint8_t payload[ 1961] =  {0xd2, 0x84, 0x43, 0xa1, 0x01, 0x26, 0xa1, 0x18, 0x20,
 
 /* names of files generated beforehand */
 
-
 #define CA_REGIS_CRT           "./certificates/ca-regis.crt"
 #define REGIS_SRV_CRT          "./certificates/regis_server-comb.crt"
 #define REGIS_SRV_KEY          "./certificates/regis_server.key"
@@ -124,13 +123,10 @@ uint8_t payload[ 1961] =  {0xd2, 0x84, 0x43, 0xa1, 0x01, 0x26, 0xa1, 0x18, 0x20,
 #define STARTPL "\r\n\r\n"
 
 #define SERVER_PORT "443"
-#define SERVER_NAME "masa.honeydukes.sandelman.ca"
 #define GET_REQUEST "GET /status.json HTTP/1.1"
-#define TEXT_PLAIN  "Content-Type: application/json"
+#define APPLICATION_JSON  "Content-Type: application/json"
 
-#define CN_NAME "junk.sandelman.ca"
-
-#define DEBUG_LEVEL 1
+#define DEBUG_LEVEL 3
 
 
 #define CHECK( x )                                                      \
@@ -445,8 +441,8 @@ int main( void )
      */
     mbedtls_printf( "  . Connecting to tcp/%s:%s...", (char *)MASA_url.s, (char *)port_url.s );
 
-    CHECK(mbedtls_net_connect( &server_fd, SERVER_NAME,
-                                         SERVER_PORT, MBEDTLS_NET_PROTO_TCP ) );
+    CHECK(mbedtls_net_connect( &server_fd, (char *)MASA_url.s,
+                                         (char *)port_url.s, MBEDTLS_NET_PROTO_TCP ) );
     mbedtls_printf( " ok\n" );
 
     /*
@@ -514,7 +510,7 @@ int main( void )
      * 3. Write the GET/POSTrequest
      */
     mbedtls_printf( "  > Write to server: " );
-    len = sprintf( (char *) buf, "%s\r\nHost: %s\r\n", POST_REQUEST_RV, SERVER_NAME );
+    len = sprintf( (char *) buf, "%sHost: %s\r\n", POST_REQUEST_RV, (char *)MASA_url.s );
     memcpy( (char *) buf + len, COSE_CBOR, sizeof(COSE_CBOR)-1);
     len += sizeof(COSE_CBOR)-1; 
     memcpy((char *) buf + len, CONTENT_LENGTH, sizeof(CONTENT_LENGTH)-1);
@@ -538,7 +534,11 @@ int main( void )
     {
         if( ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE )
         {
-            mbedtls_printf( " failed\n  ! mbedtls_ssl_write returned %d\n\n", ret );
+            mbedtls_printf( " failed\n  ! mbedtls_ssl_write returned %d\n", ret );
+            char CHECK__error_[100]; 
+            mbedtls_strerror( ret, CHECK__error_, sizeof( CHECK__error_ ) );
+            mbedtls_printf( "mbedtls_ssl_write returned  -> %s\n", CHECK__error_ );
+            ok = 1;          
             goto exit;
         }
     }
@@ -564,7 +564,11 @@ int main( void )
 
         if( ret < 0 )
         {
-            mbedtls_printf( "failed\n  ! mbedtls_ssl_read returned %d\n\n", ret );
+            mbedtls_printf( "failed\n  ! mbedtls_ssl_read returned %d\n", ret );
+            char CHECK__error_[100]; 
+            mbedtls_strerror( ret, CHECK__error_, sizeof( CHECK__error_ ) );
+            mbedtls_printf( "mbedtls_ssl_read returned  -> %s\n", CHECK__error_ );
+            ok = 1;
             break;
         }
 
